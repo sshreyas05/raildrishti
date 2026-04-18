@@ -225,10 +225,9 @@ def load_all(verbose: bool = True) -> dict:
     if verbose:
         print(f"  ✓ Master dataset: {len(master):,} rows | {master['train_no'].nunique():,} trains | {master['station_code'].nunique():,} stations")
 
+    # Reduce RAM usage drastically (~300MB) by not returning merged dependencies
     return {
         "stations":      stations,
-        "schedules":     schedules,
-        "train_details": train_details,
         "delay_data":    delay_data,
         "master":        master,
     }

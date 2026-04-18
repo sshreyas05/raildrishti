@@ -62,7 +62,7 @@ def startup():
             DATA = data_loader.load_all(verbose=True)
             print("Training ML models in background...")
             DELAY_PREDICTOR,CONG_CLF = M.train_all_models(DATA["delay_data"], verbose=True)
-            MASTER_DF = _build_master()
+            MASTER_DF = DATA["master"]
             STATION_CONG = M.compute_station_congestion(MASTER_DF)
             LOADED = True
             print("System ready ✅")
@@ -76,37 +76,7 @@ def startup():
 def root():
     return {"message": "Rail Drishti API is running. Check /health for status.", "loaded": LOADED}
 
-def _build_master():
-    td = DATA.get("train_details", pd.DataFrame()).copy()
-    st = DATA.get("stations", pd.DataFrame())
-    if td.empty: return pd.DataFrame()
-    col_map = {}
-    for col in td.columns:
-        cl = col.lower().strip()
-        if "train" in cl and "no" in cl: col_map[col]="train_no"
-        elif "train" in cl and "name" in cl: col_map[col]="train_name"
-        elif cl in ("islno","serial","sno","sr_no","stop_no","stop","station_seq","sequence_no"): col_map[col]="stop_seq"
-        elif "station" in cl and "code" in cl and "source" not in cl and "dest" not in cl: col_map[col]="station_code"
-        elif "station" in cl and "name" in cl: col_map[col]="station_name"
-        elif "source" in cl and "code" in cl: col_map[col]="source_code"
-        elif "dest" in cl and "code" in cl: col_map[col]="dest_code"
-        elif "distance" in cl: col_map[col]="distance_km"
-        elif "arrival" in cl: col_map[col]="arrival_time"
-        elif "departure" in cl: col_map[col]="departure_time"
-        elif "platform" in cl: col_map[col]="platform_no"
-    td.rename(columns=col_map, inplace=True)
-    for c in ["source_code","dest_code","station_code","train_no","train_name","distance_km"]:
-        if c not in td.columns: td[c]=""
-    if "source_code" in td.columns and "dest_code" in td.columns:
-        td["route_corridor"] = td["source_code"].fillna("")+"→"+td["dest_code"].fillna("")
-    else:
-        td["route_corridor"] = td.get("station_code","")
-    if not st.empty and "station_code" in st.columns:
-        st_slim = st[["station_code"]+[c for c in ["zone","state","latitude","longitude"] if c in st.columns]].copy()
-        td = td.merge(st_slim, on="station_code", how="left")
-    for c in ["zone","state","latitude","longitude"]:
-        if c not in td.columns: td[c]=""
-    return td
+# _build_master removed to save 300MB+ RAM; using data_loader.py's master instead.
 
 def _req():
     if not LOADED: raise HTTPException(503,"System loading, please wait...")
