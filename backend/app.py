@@ -38,9 +38,8 @@ if _frontend_url:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https://.*\.vercel\.app",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"]
 )
@@ -294,7 +293,62 @@ def operational_dashboard():
     _req()
     td=MASTER_DF; st=DATA.get("stations",pd.DataFrame())
     zd=st["zone"].value_counts().head(10).to_dict() if not st.empty and "zone" in st.columns else {}
-    return {"total_trains":int(td["train_no"].nunique()) if "train_no" in td.columns else 0,"total_stations":len(st),"total_routes":int(len(td)),"zone_distribution":zd,"timestamp":datetime.datetime.now().isoformat()}
+    crit_stations = 0
+    if STATION_CONG is not None and not STATION_CONG.empty:
+        crit_stations = int(len(STATION_CONG[STATION_CONG["congestion_score"] >= STATION_CONG["congestion_score"].quantile(0.9)]))
+    return {
+        "total_trains":int(td["train_no"].nunique()) if "train_no" in td.columns else 0,
+        "total_stations":len(st),
+        "total_routes":int(len(td)),
+        "critical_stations": crit_stations,
+        "zone_distribution":zd,
+        "timestamp":datetime.datetime.now().isoformat()
+    }
+
+@app.get("/api/admin/model-metrics")
+def model_metrics():
+    """Expose MLflow / training run metrics for the dashboard."""
+    _req()
+    metrics = M.get_model_metrics()
+    if not metrics:
+        return {
+            "status": "models_loaded",
+            "message": "Models loaded from cache. Metrics available after fresh training.",
+            "delay_model": "RandomForestRegressor (n_estimators=50, max_depth=10)",
+            "congestion_model": "RandomForestClassifier (n_estimators=50, max_depth=8)",
+            "mlflow": "enabled",
+            "experiment": "RailDrishti-ML"
+        }
+    return metrics
+
+@app.get("/api/admin/network-summary")
+def network_summary():
+    """Full operational network summary — busiest station, corridor, zone."""
+    _req()
+    sc = STATION_CONG; rc = M.compute_route_congestion(MASTER_DF); zd = M.compute_zone_summary(MASTER_DF)
+    return {
+        "busiest_station": {
+            "code": str(sc.iloc[0]["station_code"]) if not sc.empty else "",
+            "name": str(sc.iloc[0].get("station_name","")) if not sc.empty else "",
+            "trains": int(sc.iloc[0]["trains_stopping"]) if not sc.empty else 0,
+            "score": float(sc.iloc[0]["congestion_score"]) if not sc.empty else 0,
+        },
+        "busiest_corridor": {
+            "route": str(rc.iloc[0]["route_corridor"]) if not rc.empty else "",
+            "trains": int(rc.iloc[0]["trains"]) if not rc.empty else 0,
+            "score": float(rc.iloc[0]["route_score"]) if not rc.empty else 0,
+        },
+        "busiest_zone": {
+            "zone": str(zd.iloc[0]["zone"]) if not zd.empty else "",
+            "trains": int(zd.iloc[0]["trains"]) if not zd.empty else 0,
+            "stations": int(zd.iloc[0]["stations"]) if not zd.empty else 0,
+        },
+        "critical_stations": int(len(sc[sc["congestion_score"] >= sc["congestion_score"].quantile(0.9)])) if not sc.empty else 0,
+        "total_trains": int(MASTER_DF["train_no"].nunique()) if "train_no" in MASTER_DF.columns else 0,
+        "total_stations": int(MASTER_DF["station_code"].nunique()) if "station_code" in MASTER_DF.columns else 0,
+        "network_health_index": max(0, 100 - int(len(sc[sc["congestion_score"] >= sc["congestion_score"].quantile(0.9)])) * 2) if not sc.empty else 50,
+        "timestamp": datetime.datetime.now().isoformat()
+    }
 
 # ── USER ─────────────────────────────────────────────────────────────────────
 @app.get("/api/user/train-info")
