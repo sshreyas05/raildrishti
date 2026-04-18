@@ -849,8 +849,7 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────
-// Use relative path so Vercel proxy forwards to Railway seamlessly
-const API = '';
+const API = 'https://web-production-4d7cd5.up.railway.app';
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -1080,23 +1079,21 @@ async function loadAdmin() {
   loading(el);
 
   try {
-    const [ops, cong, corr, zones, netsum, mlMetrics] = await Promise.all([
+    const [ops, cong, corr, zones] = await Promise.all([
       apiFetch('/api/admin/operational-dashboard'),
       apiFetch('/api/admin/congested-stations?top_n=10'),
       apiFetch('/api/admin/congested-corridors?top_n=8'),
       apiFetch('/api/admin/zone-summary'),
-      apiFetch('/api/admin/network-summary').catch(() => null),
-      apiFetch('/api/admin/model-metrics').catch(() => null),
     ]);
 
-    adminPanelCache = { ops, cong, corr, zones, netsum, mlMetrics };
-    renderAdminFull(el, ops, cong, corr, zones, netsum, mlMetrics);
+    adminPanelCache = { ops, cong, corr, zones };
+    renderAdminFull(el, ops, cong, corr, zones);
   } catch(e) {
     showError(el, `Failed to load admin dashboard: ${e.message}`);
   }
 }
 
-function renderAdminFull(el, ops, cong, corr, zones, netsum, mlMetrics) {
+function renderAdminFull(el, ops, cong, corr, zones) {
   const zoneHtml = (zones || []).slice(0, 8).map(z => `
     <div class="zone-item">
       <div>
@@ -1206,81 +1203,8 @@ function renderAdminFull(el, ops, cong, corr, zones, netsum, mlMetrics) {
         ${zoneHtml}
       </div>
     </div>
-
-    <!-- ML Model Metrics (MLflow) -->
-    ${mlMetrics ? `
-    <div class="card" style="margin-top:4px">
-      <div class="section-header">
-        <span class="section-tag">ML</span>
-        <span class="section-title">Model Metrics &mdash; MLflow Experiment Tracking</span>
-      </div>
-      <div class="grid-4" style="padding:0">
-        <div class="metric-card blue">
-          <div class="label">Delay Model</div>
-          <div class="val" style="font-size:13px">${mlMetrics.delay_model || 'RandomForest'}</div>
-          <div class="sub">MAE: ${mlMetrics.delay_mae_minutes || mlMetrics.delay_mae || 'cached'} min</div>
-        </div>
-        <div class="metric-card cyan">
-          <div class="label">Congestion Model</div>
-          <div class="val" style="font-size:13px">${mlMetrics.congestion_model || 'RandomForest'}</div>
-          <div class="sub">Acc: ${mlMetrics.congestion_accuracy_pct ? mlMetrics.congestion_accuracy_pct+'%' : 'cached'}</div>
-        </div>
-        <div class="metric-card green">
-          <div class="label">Training Samples</div>
-          <div class="val">${(mlMetrics.training_samples || 0).toLocaleString()}</div>
-          <div class="sub">Dataset rows used</div>
-        </div>
-        <div class="metric-card amber">
-          <div class="label">MLflow Status</div>
-          <div class="val" style="font-size:14px">${mlMetrics.status === 'trained_fresh' ? '&#x2705; LIVE' : '&#x1F4E6; CACHED'}</div>
-          <div class="sub">Experiment: RailDrishti-ML</div>
-        </div>
-      </div>
-      ${mlMetrics.hyperparams ? `
-      <div style="margin-top:12px;padding:12px;background:rgba(0,255,255,0.04);border-radius:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">
-        <span style="color:var(--accent-cyan)">Hyperparameters &mdash;</span>
-        n_estimators=${mlMetrics.hyperparams.n_estimators} &nbsp;&middot;&nbsp;
-        max_depth_delay=${mlMetrics.hyperparams.max_depth_delay} &nbsp;&middot;&nbsp;
-        max_depth_cong=${mlMetrics.hyperparams.max_depth_cong} &nbsp;&middot;&nbsp;
-        n_jobs=${mlMetrics.hyperparams.n_jobs} &nbsp;&middot;&nbsp;
-        random_state=${mlMetrics.hyperparams.random_state}
-      </div>` : ''}
-    </div>` : ''}
-
-    <!-- Network Summary -->
-    ${netsum ? `
-    <div class="card" style="margin-top:4px">
-      <div class="section-header">
-        <span class="section-tag">A9</span>
-        <span class="section-title">Live Network Summary</span>
-      </div>
-      <div class="grid-4" style="padding:0">
-        <div class="metric-card red">
-          <div class="label">Busiest Station</div>
-          <div class="val" style="font-size:16px">${netsum.busiest_station?.code || '&mdash;'}</div>
-          <div class="sub">${netsum.busiest_station?.trains || 0} trains &middot; score ${Math.round(netsum.busiest_station?.score || 0)}</div>
-        </div>
-        <div class="metric-card amber">
-          <div class="label">Busiest Corridor</div>
-          <div class="val" style="font-size:11px">${(netsum.busiest_corridor?.route || '&mdash;').slice(0,20)}</div>
-          <div class="sub">${netsum.busiest_corridor?.trains || 0} trains</div>
-        </div>
-        <div class="metric-card green">
-          <div class="label">Busiest Zone</div>
-          <div class="val">${netsum.busiest_zone?.zone || '&mdash;'}</div>
-          <div class="sub">${netsum.busiest_zone?.trains || 0} trains</div>
-        </div>
-        <div class="metric-card ${(netsum.network_health_index || 0) > 60 ? 'green' : 'red'}">
-          <div class="label">Network Health</div>
-          <div class="val">${netsum.network_health_index || 0}</div>
-          <div class="reliability-track"><div class="reliability-fill" style="width:${netsum.network_health_index || 0}%"></div></div>
-          <div class="sub">Out of 100</div>
-        </div>
-      </div>
-    </div>` : ''}
   `;
 }
-
 
 async function showAdminPanel(panel) {
   const el = document.getElementById('admin-results');

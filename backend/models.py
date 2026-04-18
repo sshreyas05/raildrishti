@@ -13,7 +13,6 @@ All models are persisted to disk so the system runs fast on subsequent launches.
 
 import os
 import math
-import datetime
 import joblib
 import numpy as np
 import pandas as pd
@@ -23,19 +22,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, accuracy_score
 
-# MLflow — experiment tracking. Gracefully skip if not installed.
-try:
-    import mlflow
-    import mlflow.sklearn
-    _MLFLOW_AVAILABLE = True
-except ImportError:
-    _MLFLOW_AVAILABLE = False
-
 MODELS_DIR = Path(os.environ.get("RAILWAYS_DATA_DIR", ".")) / "models"
 MODELS_DIR.mkdir(exist_ok=True)
-
-# Store last training metrics globally so API can expose them
-_LAST_RUN_METRICS: dict = {}
 
 
 # ─── Label encoders shared across models ─────────────────────────────────────
@@ -428,75 +416,20 @@ def get_train_reliability(train_no: str, master: pd.DataFrame, delay_df: pd.Data
     return max(10.0, min(98.0, round(raw, 1)))
 
 
-def get_model_metrics() -> dict:
-    """Return last recorded MLflow / training metrics for the API."""
-    return dict(_LAST_RUN_METRICS)
-
-
 def train_all_models(delay_df: pd.DataFrame, verbose: bool = True) -> tuple:
-    """Train (or reload) all ML models, log metrics via MLflow, and return them."""
-    dp = DelayPredictor()
-    cc = CongestionClassifier()
+    """Train (or reload) all ML models and return them."""
+    dp  = DelayPredictor()
+    cc  = CongestionClassifier()
 
     if dp.exists() and cc.exists():
         if verbose:
             print("  Loading persisted models …")
         dp.load()
         cc.load()
-        _LAST_RUN_METRICS.update({
-            "status": "loaded_from_cache",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "delay_mae": round(dp.mae, 2) if dp.mae else "cached",
-            "congestion_acc": round(cc.acc, 4) if cc.acc else "cached",
-        })
     else:
         if verbose:
             print("  Training models …")
-
-        # --- MLflow Experiment Tracking ---
-        if _MLFLOW_AVAILABLE:
-            mlflow.set_tracking_uri(f"file://{MODELS_DIR}/mlruns")
-            mlflow.set_experiment("RailDrishti-ML")
-            run = mlflow.start_run(run_name=f"train_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}"
-            )
-
-        delay_mae = dp.train(delay_df, verbose)
-        cong_acc  = cc.train(delay_df, verbose)
-
-        metrics = {
-            "status": "trained_fresh",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "delay_mae_minutes": round(delay_mae, 2),
-            "congestion_accuracy_pct": round(cong_acc * 100, 1),
-            "training_samples": len(delay_df),
-            "delay_model": "RandomForestRegressor",
-            "congestion_model": "RandomForestClassifier",
-            "hyperparams": {
-                "n_estimators": 50,
-                "max_depth_delay": 10,
-                "max_depth_cong": 8,
-                "n_jobs": 1,
-                "random_state": 42,
-            }
-        }
-        _LAST_RUN_METRICS.update(metrics)
-
-        if _MLFLOW_AVAILABLE:
-            try:
-                mlflow.log_params(metrics["hyperparams"])
-                mlflow.log_metrics({
-                    "delay_mae_min": delay_mae,
-                    "congestion_accuracy": cong_acc,
-                    "training_samples": len(delay_df),
-                })
-                mlflow.sklearn.log_model(dp.model, "delay_predictor")
-                mlflow.sklearn.log_model(cc.model, "congestion_classifier")
-                mlflow.end_run()
-                if verbose:
-                    print(f"  ✓ MLflow run logged: delay MAE={delay_mae:.1f} min, cong acc={cong_acc:.2%}")
-            except Exception as e:
-                print(f"  MLflow logging skipped: {e}")
-                try: mlflow.end_run()
-                except: pass
+        dp.train(delay_df, verbose)
+        cc.train(delay_df, verbose)
 
     return dp, cc
