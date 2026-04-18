@@ -29,7 +29,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
-    "https://raildrishti1.vercel.app/"
+    "https://raildrishti1.vercel.app"
 ]
 # Also allow any Vercel deployment URL via env var (set FRONTEND_URL on Railway)
 _frontend_url = os.environ.get("FRONTEND_URL", "")
