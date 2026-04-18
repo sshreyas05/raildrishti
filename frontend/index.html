@@ -981,10 +981,10 @@ function renderUserResult(el, info, alts) {
 
   const altsHtml = Array.isArray(alts) && alts.length > 0 ? alts.slice(0, 5).map(a => `
     <tr>
-      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${a.train_no || '—'}</td>
-      <td>${a.train_name || '—'}</td>
-      <td>${a.source || '—'} → ${a.dest || '—'}</td>
-      <td>${a.train_type || '—'}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${a.alt_train_no || a.train_no || '—'}</td>
+      <td>${a.alt_train_name || a.train_name || '—'}</td>
+      <td>${a.alt_source || a.source || '—'} → ${a.alt_dest || a.dest || '—'}</td>
+      <td>${a.type || a.train_type || 'Express'}</td>
     </tr>
   `).join('') : '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">No alternatives found</td></tr>';
 
@@ -1402,31 +1402,36 @@ function renderBottlenecksPanel(el, data) {
 }
 
 function renderCascadingPanel(el, data, trainNo) {
-  const msg = data.message || data.alert;
-  if (msg) {
+  // Handle single-item message responses
+  if (Array.isArray(data) && data.length === 1 && data[0].message) {
     el.innerHTML = `<div class="card">
       <div class="section-header"><span class="section-tag">A4</span><span class="section-title">Cascading Delay Simulation — Train ${trainNo}</span></div>
-      <div class="reason-item">${msg}</div>
+      <div class="reason-item">${data[0].message}</div>
     </div>`;
     return;
   }
 
+  // Backend returns: corridor, distance_km, base_delay_min, cascade_delay_min, cascade_risk
   const items = Array.isArray(data) ? data : (data.cascades || data.impacts || []);
-  const rows = items.map(r => `
+  const rows = items.map(r => {
+    const riskColor = r.cascade_risk === 'High' ? 'var(--accent-red)' : r.cascade_risk === 'Medium' ? 'var(--accent-amber)' : 'var(--accent-green)';
+    return `
     <tr>
-      <td style="font-family:var(--font-mono);color:var(--accent-blue)">${r.Input_Train || trainNo}</td>
-      <td style="font-family:var(--font-mono);color:var(--accent-amber)">${r.Affected_Train || '—'}</td>
-      <td style="color:var(--accent-cyan)">${r.Station_Hub || '—'}</td>
-      <td style="font-family:var(--font-mono);color:var(--accent-red)">${r.Delay_Passed_Mins || '—'} min</td>
-    </tr>
-  `).join('');
+      <td style="font-family:var(--font-mono);color:var(--accent-blue)">${trainNo}</td>
+      <td style="color:var(--accent-amber);font-size:12px">${(r.corridor || '—').slice(0, 30)}</td>
+      <td style="font-family:var(--font-mono)">${r.distance_km || '—'} km</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-amber)">${r.base_delay_min || '—'} min</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-red)">${r.cascade_delay_min || '—'} min</td>
+      <td><span class="badge" style="color:${riskColor};border-color:${riskColor}">${r.cascade_risk || '—'}</span></td>
+    </tr>`;
+  }).join('');
 
   el.innerHTML = `<div class="card">
     <div class="section-header"><span class="section-tag">A4</span><span class="section-title">Cascading Delay Simulation — Train ${trainNo}</span></div>
     <div style="overflow-x:auto">
       <table class="data-table">
-        <thead><tr><th>Input Train</th><th>Affected Train</th><th>Station Hub</th><th>Delay Passed</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">Delay absorbed by network buffer.</td></tr>'}</tbody>
+        <thead><tr><th>Train</th><th>Corridor</th><th>Distance</th><th>Base Delay</th><th>Cascade Delay</th><th>Risk</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:16px">Delay absorbed by network buffer.</td></tr>'}</tbody>
       </table>
     </div>
   </div>`;
@@ -1436,10 +1441,11 @@ function renderReroutingPanel(el, data, trainNo) {
   const items = Array.isArray(data) ? data : (data.options || data.alternatives || []);
   const rows = items.map(r => `
     <tr>
-      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.train_no || '—'}</td>
-      <td>${(r.train_name || '—').slice(0, 28)}</td>
-      <td style="font-family:var(--font-mono)">${r.source || '—'} → ${r.dest || '—'}</td>
-      <td>${r.train_type || '—'}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.alt_train_no || r.train_no || '—'}</td>
+      <td>${(r.alt_train_name || r.train_name || '—').slice(0, 28)}</td>
+      <td style="font-family:var(--font-mono)">${r.alt_source || r.source || '—'} → ${r.alt_dest || r.dest || '—'}</td>
+      <td>${r.type || r.train_type || 'Express'}</td>
+      <td><span style="color:var(--accent-green);font-size:12px">${r.shared_stations || 0} shared stops</span></td>
     </tr>
   `).join('');
 
@@ -1447,8 +1453,8 @@ function renderReroutingPanel(el, data, trainNo) {
     <div class="section-header"><span class="section-tag">A5</span><span class="section-title">Rerouting Options — Train ${trainNo}</span></div>
     <div style="overflow-x:auto">
       <table class="data-table">
-        <thead><tr><th>Train No</th><th>Name</th><th>Route</th><th>Type</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">No rerouting options found</td></tr>'}</tbody>
+        <thead><tr><th>Train No</th><th>Name</th><th>Route</th><th>Type</th><th>Overlap</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="color:var(--text-dim);text-align:center;padding:16px">No rerouting options found</td></tr>'}</tbody>
       </table>
     </div>
   </div>`;
