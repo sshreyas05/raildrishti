@@ -271,3 +271,8 @@ def nearby_stations(station_code:str=Query(...),radius_km:float=50):
     nb=st.copy(); nb["dist_km"]=nb.apply(hav,axis=1)
     nb=nb[(nb["dist_km"]>0.1)&(nb["dist_km"]<=radius_km)].sort_values("dist_km").head(10)
     return _safe(nb[["station_code","station_name","state","zone","dist_km"]])
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, workers=1)
