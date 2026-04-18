@@ -70,11 +70,11 @@ class DelayPredictor:
         X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
 
         self.model = RandomForestRegressor(
-            n_estimators=200,
-            max_depth=12,
+            n_estimators=50,
+            max_depth=10,
             min_samples_leaf=5,
             random_state=42,
-            n_jobs=-1,
+            n_jobs=1,
         )
         self.model.fit(X_tr, y_tr)
         preds = self.model.predict(X_te)
@@ -156,10 +156,10 @@ class CongestionClassifier:
         X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
 
         self.model = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=10,
+            n_estimators=50,
+            max_depth=8,
             random_state=42,
-            n_jobs=-1,
+            n_jobs=1,
         )
         self.model.fit(X_tr, y_tr)
         preds    = self.model.predict(X_te)
