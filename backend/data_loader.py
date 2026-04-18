@@ -14,12 +14,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-try:
-    from deltalake import DeltaTable
-    from deltalake.writer import write_deltalake
-    DELTA_AVAILABLE = True
-except ImportError:
-    DELTA_AVAILABLE = False
 
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
