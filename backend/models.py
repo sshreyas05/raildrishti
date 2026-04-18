@@ -345,21 +345,20 @@ def get_rerouting_options(train_no: str, master: pd.DataFrame) -> list[dict]:
     Given a congested train, suggest alternative trains on similar corridors.
     Returns a list of dicts with alt_train_no, shared_stations, route.
     """
-    train_rows = master[master["train_no"] == str(train_no)]
+    # Safely combat mixed dtypes
+    train_rows = master[master["train_no"].astype(str).str.strip() == str(train_no).strip()]
     if train_rows.empty:
         return []
 
-    # Get this train's source and destination
-    src  = train_rows["source_code"].dropna().iloc[0] if not train_rows["source_code"].dropna().empty else None
-    dst  = train_rows["dest_code"].dropna().iloc[0]   if not train_rows["dest_code"].dropna().empty else None
-    if not src or not dst:
-        return []
+    # Get this train's source and destination (just for metadata, don't fail if missing)
+    src  = train_rows["source_code"].dropna().iloc[0] if "source_code" in train_rows.columns and not train_rows["source_code"].dropna().empty else ""
+    dst  = train_rows["dest_code"].dropna().iloc[0] if "dest_code" in train_rows.columns and not train_rows["dest_code"].dropna().empty else ""
 
-    train_stations = set(train_rows["station_code"].unique())
+    train_stations = set(train_rows["station_code"].dropna().unique())
 
-    # Find trains sharing at least 2 stations with this train (alternative routes)
+    # Find trains sharing at least 3 stations with this train (alternative routes)
     other_trains = master[
-        (master["train_no"] != str(train_no)) &
+        (master["train_no"].astype(str).str.strip() != str(train_no).strip()) &
         (master["station_code"].isin(train_stations))
     ]
 
@@ -369,19 +368,20 @@ def get_rerouting_options(train_no: str, master: pd.DataFrame) -> list[dict]:
         .reset_index()
         .rename(columns={"station_code": "shared_stations"})
     )
-    overlap = overlap[overlap["shared_stations"] >= 2]
+    overlap = overlap[overlap["shared_stations"] >= 3]
     overlap.sort_values("shared_stations", ascending=False, inplace=True)
 
     results = []
     for _, row in overlap.head(5).iterrows():
-        alt_info = master[master["train_no"] == row["train_no"]].iloc[0]
+        alt_info = master[master["train_no"].astype(str).str.strip() == str(row["train_no"]).strip()].iloc[0]
         results.append({
-            "alt_train_no":      row["train_no"],
-            "alt_train_name":    alt_info.get("train_name", "Unknown"),
+            "alt_train_no":      str(row["train_no"]),
+            "alt_train_name":    str(alt_info.get("train_name", "Unknown")),
             "shared_stations":   int(row["shared_stations"]),
-            "alt_source":        alt_info.get("source_code", ""),
-            "alt_dest":          alt_info.get("dest_code", ""),
-            "route":             alt_info.get("route_corridor", ""),
+            "alt_source":        str(alt_info.get("source_code", "")),
+            "alt_dest":          str(alt_info.get("dest_code", "")),
+            "route":             str(alt_info.get("route_corridor", "")),
+            "type":              "Express"
         })
     return results
 
