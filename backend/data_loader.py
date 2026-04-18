@@ -14,6 +14,13 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+try:
+    from deltalake import DeltaTable
+    from deltalake.writer import write_deltalake
+    DELTA_AVAILABLE = True
+except ImportError:
+    DELTA_AVAILABLE = False
+
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("RAILWAYS_DATA_DIR", "."))
@@ -202,6 +209,26 @@ def load_all(verbose: bool = True) -> dict:
     Master loader – call this once from main.py.
     Returns a dict with keys: stations, schedules, train_details, delay_data, master
     """
+    DELTA_MASTER_PATH = str(DATA_DIR / "delta" / "master")
+    DELTA_DELAY_PATH = str(DATA_DIR / "delta" / "delay")
+    DELTA_STATIONS_PATH = str(DATA_DIR / "delta" / "stations")
+    
+    if DELTA_AVAILABLE and Path(DELTA_MASTER_PATH).exists():
+        if verbose:
+            print("  [Delta] Loading data from Databricks Delta Lake format (Fast & Bulletproof) ...")
+        master = DeltaTable(DELTA_MASTER_PATH).to_pandas()
+        delay_data = DeltaTable(DELTA_DELAY_PATH).to_pandas()
+        stations = DeltaTable(DELTA_STATIONS_PATH).to_pandas()
+        
+        if verbose:
+            print(f"  ✓ Delta Master dataset: {len(master):,} rows | {master['train_no'].nunique():,} trains | {master['station_code'].nunique():,} stations")
+            
+        return {
+            "stations":      stations,
+            "delay_data":    delay_data,
+            "master":        master,
+        }
+
     if verbose:
         print("  Loading stations.json …")
     stations = load_stations()
@@ -224,6 +251,21 @@ def load_all(verbose: bool = True) -> dict:
 
     if verbose:
         print(f"  ✓ Master dataset: {len(master):,} rows | {master['train_no'].nunique():,} trains | {master['station_code'].nunique():,} stations")
+
+    if DELTA_AVAILABLE:
+        try:
+            if verbose:
+                print("  [Delta] Saving datasets to Databricks Delta Lake format ...")
+            os.makedirs(DELTA_STATIONS_PATH, exist_ok=True)
+            os.makedirs(DELTA_DELAY_PATH, exist_ok=True)
+            os.makedirs(DELTA_MASTER_PATH, exist_ok=True)
+            
+            write_deltalake(DELTA_STATIONS_PATH, stations, mode="overwrite")
+            write_deltalake(DELTA_DELAY_PATH, delay_data, mode="overwrite")
+            write_deltalake(DELTA_MASTER_PATH, master, mode="overwrite")
+        except Exception as e:
+            if verbose:
+                print(f"  [Delta] Error saving to Delta Lake: {e}")
 
     # Reduce RAM usage drastically (~300MB) by not returning merged dependencies
     return {
