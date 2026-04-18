@@ -49,22 +49,32 @@ app.add_middleware(
 
 DATA={}; DELAY_PREDICTOR=None; CONG_CLF=None; MASTER_DF=None; STATION_CONG=None; LOADED=False
 
+import threading
+
 @app.on_event("startup")
 def startup():
-    global DATA,DELAY_PREDICTOR,CONG_CLF,MASTER_DF,STATION_CONG,LOADED
-    try:
-        print(f"BASE_DIR: {BASE_DIR}")
-        print(f"DATA_DIR: {DATA_DIR}")
-        print("Loading datasets...")
-        DATA = data_loader.load_all(verbose=True)
-        print("Training ML models...")
-        DELAY_PREDICTOR,CONG_CLF = M.train_all_models(DATA["delay_data"], verbose=True)
-        MASTER_DF = _build_master()
-        STATION_CONG = M.compute_station_congestion(MASTER_DF)
-        LOADED = True
-        print("System ready ✅")
-    except Exception as e:
-        print(f"Startup error: {e}"); traceback.print_exc()
+    def _load_data_and_train():
+        global DATA,DELAY_PREDICTOR,CONG_CLF,MASTER_DF,STATION_CONG,LOADED
+        try:
+            print(f"BASE_DIR: {BASE_DIR}")
+            print(f"DATA_DIR: {DATA_DIR}")
+            print("Loading datasets in background...")
+            DATA = data_loader.load_all(verbose=True)
+            print("Training ML models in background...")
+            DELAY_PREDICTOR,CONG_CLF = M.train_all_models(DATA["delay_data"], verbose=True)
+            MASTER_DF = _build_master()
+            STATION_CONG = M.compute_station_congestion(MASTER_DF)
+            LOADED = True
+            print("System ready ✅")
+        except Exception as e:
+            print(f"Startup error: {e}"); traceback.print_exc()
+            
+    threading.Thread(target=_load_data_and_train, daemon=True).start()
+    print("FastAPI server started. Data loading happening in background...")
+
+@app.get("/")
+def root():
+    return {"message": "Rail Drishti API is running. Check /health for status.", "loaded": LOADED}
 
 def _build_master():
     td = DATA.get("train_details", pd.DataFrame()).copy()
