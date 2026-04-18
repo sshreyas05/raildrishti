@@ -995,7 +995,7 @@ function renderUserResult(el, info, alts) {
         <div>
           <div class="train-no">${info.train_no}</div>
           <div class="train-name">${info.train_name}</div>
-          <div class="train-route">${info.source} → ${info.destination} · ${info.distance_km} km · ${info.train_type}</div>
+          <div class="train-route">${info.source} → ${info.destination} · ${info.distance_km} km · ${info.train_type} · ${info.stops_count || '?'} stops</div>
           <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
             ${riskBadge(info.risk_level)}
             ${congBadge(info.congestion_level)}
@@ -1411,10 +1411,10 @@ function renderCascadingPanel(el, data, trainNo) {
     return;
   }
 
-  // Backend returns: corridor, distance_km, base_delay_min, cascade_delay_min, cascade_risk
   const items = Array.isArray(data) ? data : (data.cascades || data.impacts || []);
   const rows = items.map(r => {
     const riskColor = r.cascade_risk === 'High' ? 'var(--accent-red)' : r.cascade_risk === 'Medium' ? 'var(--accent-amber)' : 'var(--accent-green)';
+    const affected = r.affected_trains ? `<span style="color:var(--accent-cyan);font-size:11px">${r.affected_trains} trains</span>` : '';
     return `
     <tr>
       <td style="font-family:var(--font-mono);color:var(--accent-blue)">${trainNo}</td>
@@ -1422,6 +1422,7 @@ function renderCascadingPanel(el, data, trainNo) {
       <td style="font-family:var(--font-mono)">${r.distance_km || '—'} km</td>
       <td style="font-family:var(--font-mono);color:var(--accent-amber)">${r.base_delay_min || '—'} min</td>
       <td style="font-family:var(--font-mono);color:var(--accent-red)">${r.cascade_delay_min || '—'} min</td>
+      <td>${affected}</td>
       <td><span class="badge" style="color:${riskColor};border-color:${riskColor}">${r.cascade_risk || '—'}</span></td>
     </tr>`;
   }).join('');
@@ -1430,8 +1431,8 @@ function renderCascadingPanel(el, data, trainNo) {
     <div class="section-header"><span class="section-tag">A4</span><span class="section-title">Cascading Delay Simulation — Train ${trainNo}</span></div>
     <div style="overflow-x:auto">
       <table class="data-table">
-        <thead><tr><th>Train</th><th>Corridor</th><th>Distance</th><th>Base Delay</th><th>Cascade Delay</th><th>Risk</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:16px">Delay absorbed by network buffer.</td></tr>'}</tbody>
+        <thead><tr><th>Train</th><th>Station Hub</th><th>Distance</th><th>Train Delay</th><th>Cascade Delay</th><th>Affected</th><th>Risk</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="color:var(--text-dim);text-align:center;padding:16px">Delay absorbed by network buffer.</td></tr>'}</tbody>
       </table>
     </div>
   </div>`;
