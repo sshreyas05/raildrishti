@@ -1,0 +1,4 @@
+# These are only needed for Vercel / local dev
+frontend/
+start_windows.ps1
+docker-compose.yml

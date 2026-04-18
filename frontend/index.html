@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rail Drishti — Indian Railways Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <style>
+    /* ── DESIGN TOKENS ─────────────────────────────────────────────────── */
+    :root {
+      --bg-base:      #05090f;
+      --bg-panel:     #0b1120;
+      --bg-card:      #0f1929;
+      --bg-card2:     #131f30;
+      --border:       #1e2d42;
+      --border-glow:  #1a4a7a;
+      --accent-blue:  #1a8fff;
+      --accent-cyan:  #00d4ff;
+      --accent-amber: #f59e0b;
+      --accent-red:   #ef4444;
+      --accent-green: #22c55e;
+      --accent-purple:#a855f7;
+      --text-primary: #e8edf5;
+      --text-secondary:#8ca0ba;
+      --text-dim:     #4a6080;
+      --rail-orange:  #ff6b35;
+      --rail-gold:    #fbbf24;
+      --font-display: 'Bebas Neue', cursive;
+      --font-mono:    'Space Mono', monospace;
+      --font-body:    'DM Sans', sans-serif;
+      --glow-blue:    0 0 20px rgba(26,143,255,0.3);
+      --glow-cyan:    0 0 20px rgba(0,212,255,0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE ─────────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5,9,15,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 26px;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+      margin-top: -4px;
+    }
+
+    .header-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .tab-btn {
+      padding: 7px 20px;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 13px;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-blue), #0d6fc9);
+      color: white;
+      box-shadow: var(--glow-blue);
+    }
+
+    .tab-btn:hover:not(.active) {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 2s infinite;
+      display: inline-block;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── MAIN LAYOUT ─────────────────────────────────────────────────────── */
+    .main {
+      position: relative;
+      z-index: 1;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ── CARDS ─────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+    }
+
+    .card-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .card-value {
+      font-family: var(--font-display);
+      font-size: 42px;
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+
+    /* ── INPUT SECTION ─────────────────────────────────────────────────── */
+    .input-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .input-section h2 {
+      font-family: var(--font-display);
+      font-size: 28px;
+      letter-spacing: 2px;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+    }
+
+    .input-section p {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .input-group label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .input-field {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(26,143,255,0.15);
+    }
+
+    .input-field::placeholder { color: var(--text-dim); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-blue), #0d6fc9);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14px;
+      padding: 11px 28px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--glow-blue);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 13px;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+
+    /* ── GRID ─────────────────────────────────────────────────────────── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 680px) {
+      .grid-4, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── METRIC CARD ─────────────────────────────────────────────────── */
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card .icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .metric-card .label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+
+    .metric-card .val {
+      font-family: var(--font-display);
+      font-size: 36px;
+      letter-spacing: 1px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .metric-card .sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .metric-card.blue  { border-top: 2px solid var(--accent-blue); }
+    .metric-card.cyan  { border-top: 2px solid var(--accent-cyan); }
+    .metric-card.amber { border-top: 2px solid var(--accent-amber); }
+    .metric-card.red   { border-top: 2px solid var(--accent-red); }
+    .metric-card.green { border-top: 2px solid var(--accent-green); }
+    .metric-card.purple{ border-top: 2px solid var(--accent-purple); }
+    .metric-card.orange{ border-top: 2px solid var(--rail-orange); }
+
+    .metric-card.blue  .val { color: var(--accent-blue); }
+    .metric-card.cyan  .val { color: var(--accent-cyan); }
+    .metric-card.amber .val { color: var(--accent-amber); }
+    .metric-card.red   .val { color: var(--accent-red); }
+    .metric-card.green .val { color: var(--accent-green); }
+    .metric-card.purple.val { color: var(--accent-purple); }
+    .metric-card.orange .val { color: var(--rail-orange); }
+
+    /* ── SECTION HEADER ─────────────────────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-tag {
+      background: rgba(26,143,255,0.15);
+      border: 1px solid rgba(26,143,255,0.3);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-blue);
+      letter-spacing: 1px;
+    }
+
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    /* ── TABLE ─────────────────────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30,45,66,0.5);
+      color: var(--text-secondary);
+    }
+
+    .data-table tr:hover td {
+      background: rgba(26,143,255,0.04);
+      color: var(--text-primary);
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* ── BADGES ─────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+    }
+
+    .badge-red    { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-amber  { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-green  { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: rgba(26,143,255,0.15); color: #1a8fff; border: 1px solid rgba(26,143,255,0.3); }
+    .badge-cyan   { background: rgba(0,212,255,0.15);  color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+    .badge-purple { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+
+    /* ── GAUGE BAR ─────────────────────────────────────────────────── */
+    .gauge-wrap { display: flex; align-items: center; gap: 8px; }
+    .gauge-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-base);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .gauge-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    .gauge-fill.high   { background: linear-gradient(90deg, #ef4444, #ff6b6b); }
+    .gauge-fill.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .gauge-fill.low    { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .gauge-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); min-width: 36px; text-align: right; }
+
+    /* ── TRAIN CARD (User) ─────────────────────────────────────────── */
+    .train-hero {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-card2));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .train-hero::after {
+      content: '🚂';
+      position: absolute;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 80px;
+      opacity: 0.08;
+    }
+
+    .train-no {
+      font-family: var(--font-display);
+      font-size: 52px;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .train-name {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin: 6px 0 4px;
+    }
+
+    .train-route {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .delay-display {
+      font-family: var(--font-display);
+      font-size: 64px;
+      line-height: 1;
+    }
+
+    .delay-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* ── RELIABILITY BAR ─────────────────────────────────────────── */
+    .reliability-track {
+      height: 8px;
+      background: var(--bg-base);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .reliability-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent-red), var(--accent-amber), var(--accent-green));
+    }
+
+    /* ── STOPS TABLE ─────────────────────────────────────────────── */
+    .stop-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(30,45,66,0.5);
+    }
+
+    .stop-row:last-child { border-bottom: none; }
+
+    .stop-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .stop-info { flex: 1; }
+    .stop-code { font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); }
+    .stop-name { font-size: 13px; color: var(--text-primary); }
+    .stop-times { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+
+    /* ── REASONS ─────────────────────────────────────────────────── */
+    .reason-item {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* ── LOADING / ERROR ─────────────────────────────────────────── */
+    .loading-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 13px; }
+
+    .error-banner {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #ef4444;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    /* ── RISK INDICATOR ─────────────────────────────────────────── */
+    .risk-indicator {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .risk-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .risk-high   { background: var(--accent-red);   box-shadow: 0 0 8px var(--accent-red); }
+    .risk-medium { background: var(--accent-amber);  box-shadow: 0 0 8px var(--accent-amber); }
+    .risk-low    { background: var(--accent-green);  box-shadow: 0 0 8px var(--accent-green); }
+
+    /* ── QUICK ACCESS BUTTONS ─────────────────────────────────────── */
+    .quick-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .quick-btn {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .quick-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-cyan);
+    }
+
+    /* ── ADMIN SECTIONS ─────────────────────────────────────────── */
+    .admin-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .admin-nav-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .admin-nav-btn.active,
+    .admin-nav-btn:hover {
+      background: rgba(26,143,255,0.12);
+      border-color: var(--accent-blue);
+      color: var(--accent-cyan);
+    }
+
+    /* ── PRIORITY LABELS ─────────────────────────────────────────── */
+    .p1 { color: #ef4444; font-weight: 700; }
+    .p2 { color: #f59e0b; font-weight: 700; }
+    .p3 { color: #22c55e; }
+    .p4 { color: var(--text-dim); }
+
+    /* ── ZONE SUMMARY ─────────────────────────────────────────────── */
+    .zone-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(30,45,66,0.4);
+    }
+
+    .zone-item:last-child { border-bottom: none; }
+
+    /* ── TICKER ─────────────────────────────────────────────────── */
+    .ticker-wrap {
+      overflow: hidden;
+      background: rgba(26,143,255,0.06);
+      border: 1px solid rgba(26,143,255,0.15);
+      border-radius: 8px;
+      padding: 8px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ticker-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .ticker-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── SCROLLBAR ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">🚆</div>
+    <div>
+      <div class="logo-text">RAIL DRISHTI</div>
+      <div class="logo-sub">INDIAN RAILWAYS INTELLIGENCE SYSTEM</div>
+    </div>
+  </div>
+
+  <div class="header-tabs">
+    <button class="tab-btn active" onclick="switchTab('user')">🎫 Passenger</button>
+    <button class="tab-btn" onclick="switchTab('admin')">🏛 Admin Control</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);font-family:var(--font-mono);">
+    <span class="status-dot"></span>
+    <span id="system-status">LIVE</span>
+    <span id="current-time" style="margin-left:8px"></span>
+  </div>
+</header>
+
+<!-- ── USER DASHBOARD ──────────────────────────────────────────────────── -->
+<div id="tab-user" class="main">
+
+  <div class="ticker-wrap">
+    <span class="ticker-label">LIVE FEED</span>
+    <span class="ticker-text" id="ticker-text">Loading system status…</span>
+  </div>
+
+  <!-- Input -->
+  <div class="input-section">
+    <h2>PASSENGER TERMINAL</h2>
+    <p>Enter your train number to get real-time delay predictions, route status, and alternative options.</p>
+    <div class="input-row">
+      <div class="input-group" style="max-width:220px;">
+        <label>Train Number</label>
+        <input class="input-field" id="u-train-no" type="text" placeholder="e.g. 12301" maxlength="10" />
+      </div>
+      <div class="input-group" style="max-width:280px;">
+        <label>Station Code (optional)</label>
+        <input class="input-field" id="u-station" type="text" placeholder="e.g. NDLS, CST, BCT" maxlength="10" />
+      </div>
+      <button class="btn-primary" onclick="searchTrain()">🔍 Search Train</button>
+      <button class="btn-secondary" onclick="clearUser()">✕ Clear</button>
+    </div>
+    <div class="quick-btns">
+      <span style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);">QUICK:</span>
+      <button class="quick-btn" onclick="quickTrain('12301')">12301 – Howrah Rajdhani</button>
+      <button class="quick-btn" onclick="quickTrain('12951')">12951 – Mumbai Rajdhani</button>
+      <button class="quick-btn" onclick="quickTrain('22222')">22222 – Hazrat Nizamuddin</button>
+      <button class="quick-btn" onclick="quickTrain('12238')">12238 – Begampura Exp</button>
+      <button class="quick-btn" onclick="quickTrain('12560')">12560 – Shiv Ganga Exp</button>
+    </div>
+  </div>
+
+  <!-- Results placeholder -->
+  <div id="user-results">
+    <div class="empty-state">
+      <div class="icon">🚆</div>
+      <p>Enter a train number above to see delay predictions, route status, and more.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN DASHBOARD ──────────────────────────────────────────────────── -->
+<div id="tab-admin" class="main" style="display:none;">
+
+  <div class="ticker-wrap">
+    <span class="ticker-label">ADMIN MODE</span>
+    <span class="ticker-text">Control Room Active — All systems nominal — Indian Railways Intelligence System v1.0</span>
+  </div>
+
+  <!-- Input for admin -->
+  <div class="input-section">
+    <h2>ADMIN CONTROL ROOM</h2>
+    <p>Monitor congestion, detect cascading delays, manage rerouting and priority clearance across the network.</p>
+    <div class="input-row">
+      <div class="input-group" style="max-width:220px;">
+        <label>Train No (for cascade / reroute)</label>
+        <input class="input-field" id="a-train-no" type="text" placeholder="e.g. 12301" />
+      </div>
+      <button class="btn-primary" onclick="loadAdmin()">📡 Load Dashboard</button>
+      <button class="btn-secondary" onclick="loadAdminSection('cascading')">⚠ Cascade Sim</button>
+      <button class="btn-secondary" onclick="loadAdminSection('rerouting')">🔀 Rerouting</button>
+    </div>
+    <div class="quick-btns">
+      <span style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);">SECTIONS:</span>
+      <button class="quick-btn" onclick="showAdminPanel('congestion')">Congestion</button>
+      <button class="quick-btn" onclick="showAdminPanel('corridors')">Corridors</button>
+      <button class="quick-btn" onclick="showAdminPanel('risk')">ML Risk</button>
+      <button class="quick-btn" onclick="showAdminPanel('zones')">Zones</button>
+      <button class="quick-btn" onclick="showAdminPanel('priority')">Priority</button>
+      <button class="quick-btn" onclick="showAdminPanel('bottlenecks')">Bottlenecks</button>
+    </div>
+  </div>
+
+  <div id="admin-results">
+    <div class="empty-state">
+      <div class="icon">🏛</div>
+      <p>Click "Load Dashboard" to load the full admin overview, or use section buttons above.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const API = '';
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-user').style.display  = tab === 'user'  ? 'block' : 'none';
+  document.getElementById('tab-admin').style.display = tab === 'admin' ? 'block' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'user') || (i === 1 && tab === 'admin'));
+  });
+}
+
+// ── LIVE CLOCK ────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('current-time').textContent =
+    now.toLocaleTimeString('en-IN', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── TICKER ────────────────────────────────────────────────────────────────
+const TICKER_MSGS = [
+  'System loaded — 8,990 stations · 417,080 schedules · ML models active',
+  'Cascading delay engine: NetworkX graph analysis online',
+  'RAG TDR advisory system: Groq LLaMA-3 integrated',
+  'Route optimization: GraphFrames BFS active',
+  'All ML models (RandomForest) loaded from persistent cache',
+  'Indian Railways Intelligence System — Real-time monitoring active',
+];
+let tickerIdx = 0;
+function rotateTicker() {
+  document.getElementById('ticker-text').textContent = TICKER_MSGS[tickerIdx % TICKER_MSGS.length];
+  tickerIdx++;
+}
+rotateTicker();
+setInterval(rotateTicker, 5000);
+
+// ── API HELPER ────────────────────────────────────────────────────────────
+async function apiFetch(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function loading(el) {
+  el.innerHTML = `<div class="loading-overlay"><div class="spinner"></div><div class="loading-text">Loading data…</div></div>`;
+}
+
+function showError(el, msg) {
+  el.innerHTML = `<div class="error-banner">⚠ ${msg}</div>`;
+}
+
+// ── BADGE HELPERS ─────────────────────────────────────────────────────────
+function riskBadge(level) {
+  const map = { High: 'badge-red', Medium: 'badge-amber', Low: 'badge-green' };
+  return `<span class="badge ${map[level] || 'badge-blue'}">${level}</span>`;
+}
+
+function congBadge(level) {
+  const map = { High: 'badge-red', Medium: 'badge-amber', Low: 'badge-green' };
+  return `<span class="badge ${map[level] || 'badge-blue'}">${level}</span>`;
+}
+
+function prioBadge(p) {
+  const map = { P1: 'p1', P2: 'p2', P3: 'p3', P4: 'p4' };
+  return `<span class="${map[p] || ''}">● ${p}</span>`;
+}
+
+function gaugeBar(val, max, level) {
+  const pct = Math.min(100, Math.round((val / (max || 1)) * 100));
+  return `<div class="gauge-wrap"><div class="gauge-bar"><div class="gauge-fill ${level}" style="width:${pct}%"></div></div><span class="gauge-label">${val}</span></div>`;
+}
+
+// ── USER: SEARCH TRAIN ────────────────────────────────────────────────────
+function quickTrain(no) {
+  document.getElementById('u-train-no').value = no;
+  searchTrain();
+}
+
+function clearUser() {
+  document.getElementById('u-train-no').value = '';
+  document.getElementById('u-station').value = '';
+  document.getElementById('user-results').innerHTML = `<div class="empty-state"><div class="icon">🚆</div><p>Enter a train number above to see delay predictions, route status, and more.</p></div>`;
+}
+
+async function searchTrain() {
+  const trainNo = document.getElementById('u-train-no').value.trim();
+  if (!trainNo) { alert('Please enter a train number.'); return; }
+
+  const el = document.getElementById('user-results');
+  loading(el);
+
+  try {
+    const [info, alts] = await Promise.all([
+      apiFetch(`/api/user/train-info?train_no=${encodeURIComponent(trainNo)}`),
+      apiFetch(`/api/user/alternatives?train_no=${encodeURIComponent(trainNo)}`).catch(() => []),
+    ]);
+    renderUserResult(el, info, alts);
+  } catch(e) {
+    showError(el, `Train ${trainNo} not found. ${e.message}`);
+    el.innerHTML += `<div class="empty-state"><div class="icon">🔍</div><p>Try trains like 12301, 12951, 22222, 12238</p></div>`;
+  }
+}
+
+function renderUserResult(el, info, alts) {
+  const delayColor = info.predicted_delay > 30 ? 'var(--accent-red)' :
+                     info.predicted_delay > 10 ? 'var(--accent-amber)' : 'var(--accent-green)';
+
+  const reasonsHtml = (info.delay_reasons || []).map(r =>
+    `<div class="reason-item">${r}</div>`
+  ).join('');
+
+  const stopsHtml = (info.stops || []).map(s => `
+    <div class="stop-row">
+      <div class="stop-num">${s.stop_no}</div>
+      <div class="stop-info">
+        <div class="stop-code">${s.station_code}</div>
+        <div class="stop-name">${s.station_name || '—'}</div>
+      </div>
+      <div class="stop-times">
+        <div>Sch: ${s.scheduled_arr || '—'}</div>
+        <div style="color:${delayColor}">Est: ${s.estimated_arr || '—'}</div>
+      </div>
+      ${s.platform !== '—' ? `<div class="badge badge-blue">Plat ${s.platform}</div>` : ''}
+    </div>
+  `).join('');
+
+  const altsHtml = Array.isArray(alts) && alts.length > 0 ? alts.slice(0, 5).map(a => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${a.train_no || '—'}</td>
+      <td>${a.train_name || '—'}</td>
+      <td>${a.source || '—'} → ${a.dest || '—'}</td>
+      <td>${a.train_type || '—'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">No alternatives found</td></tr>';
+
+  el.innerHTML = `
+    <!-- Hero -->
+    <div class="train-hero">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start">
+        <div>
+          <div class="train-no">${info.train_no}</div>
+          <div class="train-name">${info.train_name}</div>
+          <div class="train-route">${info.source} → ${info.destination} · ${info.distance_km} km · ${info.train_type}</div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            ${riskBadge(info.risk_level)}
+            ${congBadge(info.congestion_level)}
+            <span class="badge badge-blue">${info.weather}</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="delay-label">Predicted Delay</div>
+          <div class="delay-display" style="color:${delayColor}">${info.predicted_delay}</div>
+          <div class="delay-label">MINUTES</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics row -->
+    <div class="grid-4" style="margin-bottom:24px">
+      <div class="metric-card ${info.risk_level === 'High' ? 'red' : info.risk_level === 'Medium' ? 'amber' : 'green'}">
+        <div class="label">Risk Level</div>
+        <div class="val">${info.risk_level.toUpperCase()}</div>
+        <div class="sub">Current assessment</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="label">Reliability Score</div>
+        <div class="val">${info.reliability_score}</div>
+        <div class="reliability-track"><div class="reliability-fill" style="width:${info.reliability_score}%"></div></div>
+        <div class="sub">Out of 100</div>
+      </div>
+      <div class="metric-card cyan">
+        <div class="label">Congestion</div>
+        <div class="val">${info.congestion_level}</div>
+        <div class="sub">Route corridor</div>
+      </div>
+      <div class="metric-card ${info.predicted_delay > 30 ? 'red' : 'amber'}">
+        <div class="label">Delay Mins</div>
+        <div class="val">${Math.round(info.predicted_delay)}</div>
+        <div class="sub">ML prediction</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Delay Reasons -->
+      <div class="card">
+        <div class="section-header">
+          <span class="section-tag">U4</span>
+          <span class="section-title">Delay Analysis</span>
+        </div>
+        ${reasonsHtml || '<div class="reason-item">No delay factors identified.</div>'}
+      </div>
+
+      <!-- Route Stops -->
+      <div class="card">
+        <div class="section-header">
+          <span class="section-tag">U5</span>
+          <span class="section-title">Route Status</span>
+        </div>
+        ${stopsHtml || '<div class="empty-state" style="padding:20px"><p>No stop data available</p></div>'}
+      </div>
+    </div>
+
+    <!-- Alternatives -->
+    <div class="card" style="margin-top:4px">
+      <div class="section-header">
+        <span class="section-tag">U8</span>
+        <span class="section-title">Alternative Trains on Route</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Train No</th><th>Name</th><th>Route</th><th>Type</th></tr></thead>
+          <tbody>${altsHtml}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ── ADMIN: LOAD FULL DASHBOARD ────────────────────────────────────────────
+let adminPanelCache = {};
+
+async function loadAdmin() {
+  const el = document.getElementById('admin-results');
+  loading(el);
+
+  try {
+    const [ops, cong, corr, zones] = await Promise.all([
+      apiFetch('/api/admin/operational-dashboard'),
+      apiFetch('/api/admin/congested-stations?top_n=10'),
+      apiFetch('/api/admin/congested-corridors?top_n=8'),
+      apiFetch('/api/admin/zone-summary'),
+    ]);
+
+    adminPanelCache = { ops, cong, corr, zones };
+    renderAdminFull(el, ops, cong, corr, zones);
+  } catch(e) {
+    showError(el, `Failed to load admin dashboard: ${e.message}`);
+  }
+}
+
+function renderAdminFull(el, ops, cong, corr, zones) {
+  const zoneHtml = (zones || []).slice(0, 8).map(z => `
+    <div class="zone-item">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--accent-cyan)">${z.zone || '—'}</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${z.trains || 0} trains</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-mono);font-size:13px">${z.stations || 0} stns</div>
+        ${congBadge(z.congestion_level || 'Low')}
+      </div>
+    </div>
+  `).join('');
+
+  const congHtml = (cong || []).map((r, i) => {
+    const level = i < 3 ? 'High' : i < 7 ? 'Medium' : 'Low';
+    const pct   = Math.round((r.congestion_score || 0));
+    return `<tr>
+      <td style="font-family:var(--font-mono)">${i + 1}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.station_code}</td>
+      <td>${(r.station_name || '').slice(0, 22)}</td>
+      <td style="color:var(--text-dim)">${r.zone || '—'}</td>
+      <td>${r.trains_stopping || 0}</td>
+      <td>${gaugeBar(pct, 100, level.toLowerCase())}</td>
+      <td>${congBadge(level)}</td>
+    </tr>`;
+  }).join('');
+
+  const corrHtml = (corr || []).map((r, i) => {
+    const level = i < 3 ? 'High' : i < 6 ? 'Medium' : 'Low';
+    const score = Math.round(r.route_score || 0);
+    return `<tr>
+      <td style="font-family:var(--font-mono)">${i + 1}</td>
+      <td style="color:var(--accent-amber)">${(r.route_corridor || '').slice(0, 30)}</td>
+      <td>${r.trains || 0}</td>
+      <td>${r.stations || 0}</td>
+      <td>${gaugeBar(score, 100, level.toLowerCase())}</td>
+      <td>${congBadge(level)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <!-- Operational Metrics -->
+    <div class="grid-4">
+      <div class="metric-card blue">
+        <div class="icon">🚆</div>
+        <div class="label">Total Trains</div>
+        <div class="val">${(ops.total_trains || 0).toLocaleString()}</div>
+        <div class="sub">In dataset</div>
+      </div>
+      <div class="metric-card cyan">
+        <div class="icon">🏭</div>
+        <div class="label">Total Stations</div>
+        <div class="val">${(ops.total_stations || 0).toLocaleString()}</div>
+        <div class="sub">Across India</div>
+      </div>
+      <div class="metric-card amber">
+        <div class="icon">🛤</div>
+        <div class="label">Route Entries</div>
+        <div class="val">${(ops.total_routes || 0).toLocaleString()}</div>
+        <div class="sub">Schedule records</div>
+      </div>
+      <div class="metric-card green">
+        <div class="icon">⚡</div>
+        <div class="label">ML Models</div>
+        <div class="val">LIVE</div>
+        <div class="sub">RandomForest active</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- A1: Congested Stations -->
+      <div class="card">
+        <div class="section-header">
+          <span class="section-tag">A1</span>
+          <span class="section-title">Most Congested Stations</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Code</th><th>Station</th><th>Zone</th><th>Trains</th><th>Score</th><th>Status</th></tr></thead>
+            <tbody>${congHtml}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- A2: Corridors -->
+      <div class="card">
+        <div class="section-header">
+          <span class="section-tag">A2</span>
+          <span class="section-title">Congested Rail Corridors</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Corridor</th><th>Trains</th><th>Stns</th><th>Load</th><th>Level</th></tr></thead>
+            <tbody>${corrHtml}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- A7: Zone Summary -->
+    <div class="card">
+      <div class="section-header">
+        <span class="section-tag">A7</span>
+        <span class="section-title">Zone / Division Operational Summary</span>
+      </div>
+      <div style="columns:2;column-gap:24px">
+        ${zoneHtml}
+      </div>
+    </div>
+  `;
+}
+
+async function showAdminPanel(panel) {
+  const el = document.getElementById('admin-results');
+  loading(el);
+  try {
+    if (panel === 'congestion') {
+      const data = await apiFetch('/api/admin/congested-stations?top_n=15');
+      renderCongestionPanel(el, data);
+    } else if (panel === 'corridors') {
+      const data = await apiFetch('/api/admin/congested-corridors?top_n=12');
+      renderCorridorsPanel(el, data);
+    } else if (panel === 'risk') {
+      const data = await apiFetch('/api/admin/congestion-risk');
+      renderRiskPanel(el, data);
+    } else if (panel === 'zones') {
+      const data = await apiFetch('/api/admin/zone-summary');
+      renderZonesPanel(el, data);
+    } else if (panel === 'priority') {
+      const data = await apiFetch('/api/admin/priority-clearance?top_n=20');
+      renderPriorityPanel(el, data);
+    } else if (panel === 'bottlenecks') {
+      const data = await apiFetch('/api/admin/bottlenecks');
+      renderBottlenecksPanel(el, data);
+    }
+  } catch(e) {
+    showError(el, `Error loading ${panel}: ${e.message}`);
+  }
+}
+
+async function loadAdminSection(section) {
+  const trainNo = document.getElementById('a-train-no').value.trim();
+  if (!trainNo) { alert('Please enter a train number.'); return; }
+
+  const el = document.getElementById('admin-results');
+  loading(el);
+
+  try {
+    if (section === 'cascading') {
+      const data = await apiFetch(`/api/admin/cascading-delays?train_no=${encodeURIComponent(trainNo)}`);
+      renderCascadingPanel(el, data, trainNo);
+    } else if (section === 'rerouting') {
+      const data = await apiFetch(`/api/admin/rerouting?train_no=${encodeURIComponent(trainNo)}`);
+      renderReroutingPanel(el, data, trainNo);
+    }
+  } catch(e) {
+    showError(el, `Error: ${e.message}`);
+  }
+}
+
+function renderCongestionPanel(el, data) {
+  const rows = data.map((r, i) => {
+    const level = i < 5 ? 'High' : i < 10 ? 'Medium' : 'Low';
+    const score = Math.round(r.congestion_score || 0);
+    return `<tr>
+      <td style="font-family:var(--font-mono)">${i + 1}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.station_code}</td>
+      <td style="color:var(--text-primary)">${(r.station_name || '').slice(0, 22)}</td>
+      <td style="color:var(--text-dim)">${r.zone || '—'}</td>
+      <td style="color:var(--text-dim)">${(r.state || '').slice(0, 12)}</td>
+      <td>${r.trains_stopping || 0}</td>
+      <td>${r.routes_through || 0}</td>
+      <td>${gaugeBar(score, 100, level.toLowerCase())}</td>
+      <td>${congBadge(level)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A1</span><span class="section-title">Most Congested Stations — Top ${data.length}</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Code</th><th>Station</th><th>Zone</th><th>State</th><th>Trains</th><th>Routes</th><th>Score</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderCorridorsPanel(el, data) {
+  const rows = data.map((r, i) => {
+    const level = i < 4 ? 'High' : i < 8 ? 'Medium' : 'Low';
+    const score = Math.round(r.route_score || 0);
+    return `<tr>
+      <td style="font-family:var(--font-mono)">${i + 1}</td>
+      <td style="color:var(--accent-amber)">${(r.route_corridor || '').slice(0, 32)}</td>
+      <td>${r.trains || 0}</td>
+      <td>${r.stations || 0}</td>
+      <td>${r.total_km || 0}</td>
+      <td>${gaugeBar(score, 100, level.toLowerCase())}</td>
+      <td>${congBadge(level)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A2</span><span class="section-title">Congested Rail Corridors</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Corridor (Src→Dst)</th><th>Trains</th><th>Stns</th><th>Max KM</th><th>Load</th><th>Level</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderRiskPanel(el, data) {
+  const cards = data.map(w => {
+    const preds = (w.predictions || []).map(p => `
+      <tr>
+        <td style="color:var(--accent-cyan)">${p.train_type}</td>
+        <td>${p.distance_km} km</td>
+        <td>${p.weather}</td>
+        <td style="font-family:var(--font-mono);color:${p.predicted_delay_min > 20 ? 'var(--accent-red)' : p.predicted_delay_min > 10 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${p.predicted_delay_min} min</td>
+        <td>${congBadge(p.congestion_level)}</td>
+      </tr>
+    `).join('');
+    return `<div class="card">
+      <div class="section-header"><span class="section-tag">A3</span><span class="section-title">Window: ${w.window}</span></div>
+      <table class="data-table">
+        <thead><tr><th>Train Type</th><th>Distance</th><th>Weather</th><th>Predicted Delay</th><th>Congestion</th></tr></thead>
+        <tbody>${preds}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = cards;
+}
+
+function renderZonesPanel(el, data) {
+  const rows = data.map(z => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${z.zone || '—'}</td>
+      <td>${z.stations || 0}</td>
+      <td>${z.trains || 0}</td>
+      <td>${z.routes || 0}</td>
+      <td>${congBadge(z.congestion_level || 'Low')}</td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A7</span><span class="section-title">Zone / Division Summary</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Zone</th><th>Stations</th><th>Trains</th><th>Routes</th><th>Congestion</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderPriorityPanel(el, data) {
+  const rows = data.map(r => `
+    <tr>
+      <td>${prioBadge(r.priority)}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.train_no}</td>
+      <td>${(r.train_name || '').slice(0, 28)}</td>
+      <td>${r.train_type}</td>
+      <td style="font-family:var(--font-mono)">${r.source} → ${r.dest}</td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A6</span><span class="section-title">Priority Clearance — P1 (Highest) → P4</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Priority</th><th>Train No</th><th>Name</th><th>Type</th><th>Route</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderBottlenecksPanel(el, data) {
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No critical bottlenecks detected in current data.</p></div>`;
+    return;
+  }
+  const items = Array.isArray(data) ? data : (data.bottlenecks || []);
+  const rows = items.map(b => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent-red)">${b.station_code || b.code || '—'}</td>
+      <td>${b.station_name || b.name || '—'}</td>
+      <td>${b.zone || '—'}</td>
+      <td>${b.reason || b.bottleneck_reason || '—'}</td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A8</span><span class="section-title">Network Bottleneck Detection</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Code</th><th>Station</th><th>Zone</th><th>Reason</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">No bottlenecks found</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderCascadingPanel(el, data, trainNo) {
+  const msg = data.message || data.alert;
+  if (msg) {
+    el.innerHTML = `<div class="card">
+      <div class="section-header"><span class="section-tag">A4</span><span class="section-title">Cascading Delay Simulation — Train ${trainNo}</span></div>
+      <div class="reason-item">${msg}</div>
+    </div>`;
+    return;
+  }
+
+  const items = Array.isArray(data) ? data : (data.cascades || data.impacts || []);
+  const rows = items.map(r => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent-blue)">${r.Input_Train || trainNo}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-amber)">${r.Affected_Train || '—'}</td>
+      <td style="color:var(--accent-cyan)">${r.Station_Hub || '—'}</td>
+      <td style="font-family:var(--font-mono);color:var(--accent-red)">${r.Delay_Passed_Mins || '—'} min</td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A4</span><span class="section-title">Cascading Delay Simulation — Train ${trainNo}</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Input Train</th><th>Affected Train</th><th>Station Hub</th><th>Delay Passed</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">Delay absorbed by network buffer.</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderReroutingPanel(el, data, trainNo) {
+  const items = Array.isArray(data) ? data : (data.options || data.alternatives || []);
+  const rows = items.map(r => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent-cyan)">${r.train_no || '—'}</td>
+      <td>${(r.train_name || '—').slice(0, 28)}</td>
+      <td style="font-family:var(--font-mono)">${r.source || '—'} → ${r.dest || '—'}</td>
+      <td>${r.train_type || '—'}</td>
+    </tr>
+  `).join('');
+
+  el.innerHTML = `<div class="card">
+    <div class="section-header"><span class="section-tag">A5</span><span class="section-title">Rerouting Options — Train ${trainNo}</span></div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Train No</th><th>Name</th><th>Route</th><th>Type</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;padding:16px">No rerouting options found</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+env/
+
+# Environment
+.env
+
+# Node
+node_modules/
+frontend/build/
+
+# Model cache (regenerated on startup)
+data/models/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# NOTE: data files are NOT ignored — they must be committed for Render Docker build
+# If you use Git LFS, track large files with:
+#   git lfs track "data/schedules.json"
+#   git lfs track "data/Train_details_22122017.csv"

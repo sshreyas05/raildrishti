@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  rail-drishti:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rail-drishti
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:ro
+      - model_cache:/app/data/models
+    environment:
+      - RAILWAYS_DATA_DIR=/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  model_cache:

@@ -1,0 +1,15 @@
+# Don't send these to Docker build context
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+*.md
+notebooks/
+start_windows.ps1
+data/models/
+.env
+node_modules/
